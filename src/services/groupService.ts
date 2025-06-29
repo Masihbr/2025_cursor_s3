@@ -1,5 +1,7 @@
 import { Group, IGroup } from '../models/Group';
 import { User, IUser } from '../models/User';
+import { UserPreference } from '../models/UserPreference';
+import { UserPreferenceService } from './userPreferenceService';
 import mongoose from 'mongoose';
 
 export interface CreateGroupData {
@@ -18,6 +20,11 @@ export interface GroupWithMembers {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface GroupWithPreferenceStatus extends GroupWithMembers {
+  hasPreferences: boolean;
+  memberCount: number;
 }
 
 export class GroupService {
@@ -54,6 +61,32 @@ export class GroupService {
   }
 
   /**
+   * Get all groups for a user with preference status
+   */
+  static async getUserGroupsWithPreferences(userId: string): Promise<GroupWithPreferenceStatus[]> {
+    const groups = await Group.find({
+      members: userId,
+      isActive: true
+    })
+    .populate('members', 'id name email picture')
+    .populate('owner', 'id name email picture')
+    .sort({ updatedAt: -1 });
+
+    const groupsWithPreferences = await Promise.all(
+      groups.map(async (group) => {
+        const hasPreferences = await UserPreferenceService.hasPreferences(userId, (group._id as any).toString());
+        return {
+          ...group.toObject(),
+          hasPreferences,
+          memberCount: group.members.length
+        } as unknown as GroupWithPreferenceStatus;
+      })
+    );
+
+    return groupsWithPreferences;
+  }
+
+  /**
    * Get all groups for a user
    */
   static async getUserGroups(userId: string): Promise<GroupWithMembers[]> {
@@ -85,6 +118,20 @@ export class GroupService {
     }
 
     return group as unknown as GroupWithMembers;
+  }
+
+  /**
+   * Get a specific group with preference status
+   */
+  static async getGroupByIdWithPreferences(groupId: string, userId: string): Promise<GroupWithPreferenceStatus> {
+    const group = await this.getGroupById(groupId, userId);
+    const hasPreferences = await UserPreferenceService.hasPreferences(userId, groupId);
+    
+    return {
+      ...group,
+      hasPreferences,
+      memberCount: group.members.length
+    };
   }
 
   /**
@@ -151,6 +198,14 @@ export class GroupService {
     // Remove user from members
     group.members = group.members.filter(memberId => !memberId.equals(userIdObj));
     await group.save();
+
+    // Clean up user preferences for this group
+    try {
+      await UserPreferenceService.deletePreferences(userId, groupId);
+    } catch (error) {
+      // Ignore errors if preferences don't exist
+      console.log('No preferences to clean up for user leaving group');
+    }
   }
 
   /**
@@ -170,6 +225,13 @@ export class GroupService {
     // Soft delete by setting isActive to false
     group.isActive = false;
     await group.save();
+
+    // Clean up all user preferences for this group
+    try {
+      await UserPreference.deleteMany({ groupId: new mongoose.Types.ObjectId(groupId) });
+    } catch (error) {
+      console.log('Error cleaning up preferences for deleted group:', error);
+    }
   }
 
   /**
@@ -220,11 +282,30 @@ export class GroupService {
    */
   static async getGroupStats(groupId: string, userId: string): Promise<any> {
     const group = await this.getGroupById(groupId, userId);
+    const genreStats = await UserPreferenceService.getGroupGenreStats(groupId);
     
     return {
       totalMembers: group.members.length,
       createdAt: group.createdAt,
-      lastUpdated: group.updatedAt
+      lastUpdated: group.updatedAt,
+      genreStats
     };
+  }
+
+  /**
+   * Get groups that need preference setup
+   */
+  static async getGroupsNeedingPreferences(userId: string): Promise<GroupWithMembers[]> {
+    const userGroups = await this.getUserGroups(userId);
+    const groupsNeedingPreferences: GroupWithMembers[] = [];
+
+    for (const group of userGroups) {
+      const hasPreferences = await UserPreferenceService.hasPreferences(userId, group._id.toString());
+      if (!hasPreferences) {
+        groupsNeedingPreferences.push(group);
+      }
+    }
+
+    return groupsNeedingPreferences;
   }
 } 

@@ -8,16 +8,15 @@ import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import session from 'express-session';
+import passport from 'passport';
 
 import { connectDB } from './config/database';
-import passport from './config/passport';
+import './config/passport';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
 import authRoutes from './routes/auth';
 import groupRoutes from './routes/groups';
-import movieRoutes from './routes/movies';
-import votingRoutes from './routes/voting';
-import { setupSocketIO } from './config/socket';
+import preferencesRoutes from './routes/preferences';
 
 // Load environment variables
 dotenv.config();
@@ -85,18 +84,24 @@ app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV 
+    environment: process.env.NODE_ENV,
+    uptime: process.uptime()
   });
 });
 
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/groups', groupRoutes);
-app.use('/api/movies', movieRoutes);
-app.use('/api/voting', votingRoutes);
+app.use('/api/preferences', preferencesRoutes);
 
-// Setup Socket.IO
-setupSocketIO(io);
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+});
 
 // Error handling middleware
 app.use(notFound);
@@ -114,6 +119,7 @@ const startServer = async () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📱 Environment: ${process.env.NODE_ENV}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+      console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

@@ -17,6 +17,7 @@ import { notFound } from './middleware/notFound';
 import authRoutes from './routes/auth';
 import groupRoutes from './routes/groups';
 import preferencesRoutes from './routes/preferences';
+import votingRoutes from './routes/voting';
 
 // Load environment variables
 dotenv.config();
@@ -93,6 +94,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/preferences', preferencesRoutes);
+app.use('/api/voting', votingRoutes);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {

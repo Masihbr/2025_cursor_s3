@@ -541,4 +541,121 @@ router.get('/recommendations/:groupId', authenticateToken, async (req: express.R
   }
 });
 
+// Get the selected movie (winner) for a completed session
+router.get('/sessions/:sessionId/selected-movie', authenticateToken, async (req: express.Request, res) => {
+  try {
+    const { sessionId } = req.params;
+    const user = (req as any).user as IUser;
+    const userId = (user._id as any).toString();
+
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID is required'
+      });
+    }
+
+    const selectedMovie = await VotingSessionService.getSelectedMovie(sessionId, userId);
+
+    return res.json({
+      success: true,
+      data: selectedMovie,
+      message: 'Selected movie retrieved successfully'
+    });
+  } catch (error) {
+    console.error('Error getting selected movie:', error);
+    if (error instanceof Error) {
+      if (error.message === 'Voting session not found') {
+        return res.status(404).json({
+          success: false,
+          error: 'Voting session not found'
+        });
+      }
+      if (error.message === 'Access denied to this voting session') {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied to this voting session'
+        });
+      }
+      if (error.message === 'Voting session is not completed') {
+        return res.status(400).json({
+          success: false,
+          error: 'Voting session is not completed'
+        });
+      }
+      if (error.message === 'No results available for this session') {
+        return res.status(400).json({
+          success: false,
+          error: 'No results available for this session'
+        });
+      }
+    }
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get selected movie'
+    });
+  }
+});
+
+// Get all movie results for a completed session
+router.get('/sessions/:sessionId/results', authenticateToken, async (req: express.Request, res) => {
+  try {
+    const { sessionId } = req.params;
+    const user = (req as any).user as IUser;
+    const userId = (user._id as any).toString();
+
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID is required'
+      });
+    }
+
+    const results = await VotingSessionService.getMovieResults(sessionId, userId);
+
+    return res.json({
+      success: true,
+      data: {
+        sessionId,
+        results,
+        winner: results.find(movie => movie.isWinner),
+        totalMovies: results.length
+      },
+      message: 'Movie results retrieved successfully'
+    });
+  } catch (error) {
+    console.error('Error getting movie results:', error);
+    if (error instanceof Error) {
+      if (error.message === 'Voting session not found') {
+        return res.status(404).json({
+          success: false,
+          error: 'Voting session not found'
+        });
+      }
+      if (error.message === 'Access denied to this voting session') {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied to this voting session'
+        });
+      }
+      if (error.message === 'Voting session is not completed') {
+        return res.status(400).json({
+          success: false,
+          error: 'Voting session is not completed'
+        });
+      }
+      if (error.message === 'No results available for this session') {
+        return res.status(400).json({
+          success: false,
+          error: 'No results available for this session'
+        });
+      }
+    }
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get movie results'
+    });
+  }
+});
+
 export default router; 

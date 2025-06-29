@@ -140,11 +140,22 @@ export class SocketService {
           const session = await VotingSessionService.completeVotingSession(sessionId, user._id.toString());
           const groupId = session.groupId.toString();
 
-          // Emit session completed event
+          // Get the selected movie
+          const selectedMovie = await VotingSessionService.getSelectedMovie(sessionId, user._id.toString());
+
+          // Emit session completed event with selected movie
           this.io.to(`group:${groupId}`).emit('session-completed', {
             sessionId,
             results: session.results,
+            selectedMovie,
             endedAt: session.endedAt
+          });
+
+          // Emit movie selected event specifically
+          this.io.to(`group:${groupId}`).emit('movie-selected', {
+            sessionId,
+            selectedMovie,
+            timestamp: new Date()
           });
 
         } catch (error) {
@@ -207,6 +218,28 @@ export class SocketService {
     if (userSocket) {
       this.io.to(userSocket[0]).emit(event, data);
     }
+  }
+
+  /**
+   * Emit movie selection event to group
+   */
+  public emitMovieSelected(groupId: string, sessionId: string, selectedMovie: any) {
+    this.io.to(`group:${groupId}`).emit('movie-selected', {
+      sessionId,
+      selectedMovie,
+      timestamp: new Date()
+    });
+  }
+
+  /**
+   * Emit session results to group
+   */
+  public emitSessionResults(groupId: string, sessionId: string, results: any) {
+    this.io.to(`group:${groupId}`).emit('session-results', {
+      sessionId,
+      results,
+      timestamp: new Date()
+    });
   }
 
   public getConnectedUsers(): SocketUser[] {

@@ -31,6 +31,20 @@ export interface VotingSessionWithDetails extends IVotingSession {
   };
 }
 
+export interface SelectedMovie {
+  movieId: string;
+  title: string;
+  year: number;
+  genres: string[];
+  posterUrl?: string;
+  score: number;
+  likeCount: number;
+  dislikeCount: number;
+  totalVotes: number;
+  reason: string;
+  isWinner: boolean;
+}
+
 export class VotingSessionService {
   /**
    * Create a new voting session
@@ -256,6 +270,104 @@ export class VotingSessionService {
     session.endedAt = new Date();
 
     return await session.save();
+  }
+
+  /**
+   * Get the selected movie (winner) for a completed session
+   */
+  static async getSelectedMovie(sessionId: string, userId: string): Promise<SelectedMovie> {
+    const session = await VotingSession.findById(sessionId);
+    if (!session) {
+      throw new Error('Voting session not found');
+    }
+
+    // Verify user is a member of the group
+    const group = await Group.findById(session.groupId);
+    if (!group || !group.members.some(memberId => memberId.equals(new mongoose.Types.ObjectId(userId)))) {
+      throw new Error('Access denied to this voting session');
+    }
+
+    if (session.status !== 'completed') {
+      throw new Error('Voting session is not completed');
+    }
+
+    if (!session.results || session.results.length === 0) {
+      throw new Error('No results available for this session');
+    }
+
+    // Find the winner (highest score)
+    const winner = session.results.reduce((prev, current) => 
+      (current.score > prev.score) ? current : prev
+    );
+
+    // Get the original recommendation for additional details
+    const originalRecommendation = session.movieRecommendations.find(
+      movie => movie.movieId === winner.movieId
+    );
+
+    return {
+      movieId: winner.movieId,
+      title: winner.title,
+      year: winner.year,
+      genres: winner.genres,
+      posterUrl: winner.posterUrl,
+      score: winner.score,
+      likeCount: winner.likeCount,
+      dislikeCount: winner.dislikeCount,
+      totalVotes: winner.totalVotes,
+      reason: originalRecommendation?.reason || 'Selected by group vote',
+      isWinner: true
+    };
+  }
+
+  /**
+   * Get all movie results for a completed session
+   */
+  static async getMovieResults(sessionId: string, userId: string): Promise<SelectedMovie[]> {
+    const session = await VotingSession.findById(sessionId);
+    if (!session) {
+      throw new Error('Voting session not found');
+    }
+
+    // Verify user is a member of the group
+    const group = await Group.findById(session.groupId);
+    if (!group || !group.members.some(memberId => memberId.equals(new mongoose.Types.ObjectId(userId)))) {
+      throw new Error('Access denied to this voting session');
+    }
+
+    if (session.status !== 'completed') {
+      throw new Error('Voting session is not completed');
+    }
+
+    if (!session.results || session.results.length === 0) {
+      throw new Error('No results available for this session');
+    }
+
+    // Find the winner (highest score)
+    const winner = session.results.reduce((prev, current) => 
+      (current.score > prev.score) ? current : prev
+    );
+
+    // Map results to SelectedMovie format
+    return session.results.map(result => {
+      const originalRecommendation = session.movieRecommendations.find(
+        movie => movie.movieId === result.movieId
+      );
+
+      return {
+        movieId: result.movieId,
+        title: result.title,
+        year: result.year,
+        genres: result.genres,
+        posterUrl: result.posterUrl,
+        score: result.score,
+        likeCount: result.likeCount,
+        dislikeCount: result.dislikeCount,
+        totalVotes: result.totalVotes,
+        reason: originalRecommendation?.reason || 'Voted by group',
+        isWinner: result.movieId === winner.movieId
+      };
+    });
   }
 
   /**

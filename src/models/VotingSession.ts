@@ -16,7 +16,7 @@ export interface IVotingSession extends Document {
   votes: Array<{
     userId: mongoose.Types.ObjectId;
     movieId: string;
-    vote: 'like' | 'dislike' | 'neutral';
+    vote: 'like' | 'dislike';
     timestamp: Date;
   }>;
   results: Array<{
@@ -102,7 +102,7 @@ const votingSessionSchema = new Schema<IVotingSession>({
     },
     vote: {
       type: String,
-      enum: ['like', 'dislike', 'neutral'],
+      enum: ['like', 'dislike'],
       required: true
     },
     timestamp: {

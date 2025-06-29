@@ -14,6 +14,7 @@ import { connectDB } from './config/database';
 import './config/passport';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
+import { SocketService } from './services/socketService';
 import authRoutes from './routes/auth';
 import groupRoutes from './routes/groups';
 import preferencesRoutes from './routes/preferences';
@@ -32,6 +33,9 @@ const io = new SocketIOServer(server, {
 });
 
 const PORT = process.env.PORT || 3000;
+
+// Initialize WebSocket service
+const socketService = new SocketService(server);
 
 // Security middleware
 app.use(helmet());
@@ -96,14 +100,14 @@ app.use('/api/groups', groupRoutes);
 app.use('/api/preferences', preferencesRoutes);
 app.use('/api/voting', votingRoutes);
 
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
-  
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-  });
-});
+// Socket.IO connection handling (legacy - now handled by SocketService)
+// io.on('connection', (socket) => {
+//   console.log('User connected:', socket.id);
+//   
+//   socket.on('disconnect', () => {
+//     console.log('User disconnected:', socket.id);
+//   });
+// });
 
 // Error handling middleware
 app.use(notFound);

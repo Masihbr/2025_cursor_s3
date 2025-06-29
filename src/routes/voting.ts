@@ -212,10 +212,10 @@ router.post('/sessions/:sessionId/vote', authenticateToken, async (req: express.
       });
     }
 
-    if (!['like', 'dislike', 'neutral'].includes(vote)) {
+    if (!['like', 'dislike'].includes(vote)) {
       return res.status(400).json({
         success: false,
-        error: 'Vote must be like, dislike, or neutral'
+        error: 'Vote must be like or dislike'
       });
     }
 

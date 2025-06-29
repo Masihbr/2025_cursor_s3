@@ -18,7 +18,7 @@ export interface CreateVotingSessionData {
 export interface VoteData {
   userId: string;
   movieId: string;
-  vote: 'like' | 'dislike' | 'neutral';
+  vote: 'like' | 'dislike';
 }
 
 export interface VotingSessionWithDetails extends IVotingSession {
@@ -315,27 +315,21 @@ export class VotingSessionService {
    * Calculate voting results
    */
   private static calculateResults(session: IVotingSession): any[] {
-    const voteCounts: { [movieId: string]: { likes: number; dislikes: number; neutrals: number } } = {};
+    const voteCounts: { [movieId: string]: { likes: number; dislikes: number } } = {};
 
     // Initialize vote counts for all recommended movies
     for (const movie of session.movieRecommendations) {
-      voteCounts[movie.movieId] = { likes: 0, dislikes: 0, neutrals: 0 };
+      voteCounts[movie.movieId] = { likes: 0, dislikes: 0 };
     }
 
     // Count votes
     for (const vote of session.votes) {
       const movieId = vote.movieId;
       if (voteCounts[movieId]) {
-        switch (vote.vote) {
-          case 'like':
-            voteCounts[movieId].likes++;
-            break;
-          case 'dislike':
-            voteCounts[movieId].dislikes++;
-            break;
-          case 'neutral':
-            voteCounts[movieId].neutrals++;
-            break;
+        if (vote.vote === 'like') {
+          voteCounts[movieId].likes++;
+        } else {
+          voteCounts[movieId].dislikes++;
         }
       }
     }
@@ -352,13 +346,12 @@ export class VotingSessionService {
           posterUrl: movie.posterUrl,
           likeCount: 0,
           dislikeCount: 0,
-          neutralCount: 0,
           totalVotes: 0,
           score: 0
         };
       }
       
-      const totalVotes = counts.likes + counts.dislikes + counts.neutrals;
+      const totalVotes = counts.likes + counts.dislikes;
       
       // Calculate score: (likes - dislikes) / totalVotes * 100
       const score = totalVotes > 0 ? ((counts.likes - counts.dislikes) / totalVotes) * 100 : 0;
@@ -371,7 +364,6 @@ export class VotingSessionService {
         posterUrl: movie.posterUrl,
         likeCount: counts.likes,
         dislikeCount: counts.dislikes,
-        neutralCount: counts.neutrals,
         totalVotes,
         score: Math.round(score)
       };
@@ -403,8 +395,7 @@ export class VotingSessionService {
     const totalVotes = session.votes.length;
     const voteBreakdown = {
       likes: session.votes.filter(v => v.vote === 'like').length,
-      dislikes: session.votes.filter(v => v.vote === 'dislike').length,
-      neutrals: session.votes.filter(v => v.vote === 'neutral').length
+      dislikes: session.votes.filter(v => v.vote === 'dislike').length
     };
 
     return {

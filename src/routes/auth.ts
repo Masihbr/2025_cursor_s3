@@ -1,8 +1,8 @@
 import express from 'express';
 import passport from 'passport';
 import { generateToken } from '../utils/auth';
-import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
-import { User } from '../models/User';
+import { authenticateToken } from '../middleware/auth';
+import { User, IUser } from '../models/User';
 
 const router = express.Router();
 
@@ -17,7 +17,7 @@ router.get('/google/callback',
     // Generate JWT token for the authenticated user
     const user = req.user as any;
     const token = generateToken({
-      userId: user._id,
+      userId: user._id.toString(),
       email: user.email
     });
 
@@ -28,11 +28,11 @@ router.get('/google/callback',
 );
 
 // Get current user profile
-router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.get('/me', authenticateToken, async (req: express.Request, res) => {
   try {
-    const user = req.user;
+    const user = (req as any).user as IUser;
     
-    res.json({
+    return res.json({
       success: true,
       data: {
         id: user._id,
@@ -45,7 +45,7 @@ router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to get user profile'
     });
@@ -53,15 +53,15 @@ router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res) => {
 });
 
 // Refresh token
-router.post('/refresh', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/refresh', authenticateToken, async (req: express.Request, res) => {
   try {
-    const user = req.user;
+    const user = (req as any).user as IUser;
     const newToken = generateToken({
-      userId: user._id,
+      userId: (user._id as any).toString(),
       email: user.email
     });
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         token: newToken,
@@ -75,7 +75,7 @@ router.post('/refresh', authenticateToken, async (req: AuthenticatedRequest, res
       }
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to refresh token'
     });
@@ -84,24 +84,25 @@ router.post('/refresh', authenticateToken, async (req: AuthenticatedRequest, res
 
 // Logout (client-side token removal)
 router.post('/logout', authenticateToken, (req, res) => {
-  res.json({
+  return res.json({
     success: true,
     message: 'Logged out successfully'
   });
 });
 
 // Validate token
-router.get('/validate', authenticateToken, (req: AuthenticatedRequest, res) => {
-  res.json({
+router.get('/validate', authenticateToken, (req: express.Request, res) => {
+  const user = (req as any).user as IUser;
+  return res.json({
     success: true,
     data: {
       valid: true,
       user: {
-        id: req.user._id,
-        email: req.user.email,
-        name: req.user.name,
-        picture: req.user.picture,
-        isActive: req.user.isActive
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+        isActive: user.isActive
       }
     }
   });

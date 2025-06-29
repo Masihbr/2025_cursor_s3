@@ -1,13 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/auth';
-import { User } from '../models/User';
+import { User, IUser } from '../models/User';
 
 export interface AuthenticatedRequest extends Request {
-  user?: any;
+  user: IUser;
 }
 
 export const authenticateToken = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -34,7 +34,7 @@ export const authenticateToken = async (
       return;
     }
 
-    req.user = user;
+    (req as any).user = user;
     next();
   } catch (error) {
     res.status(401).json({ 
@@ -45,7 +45,7 @@ export const authenticateToken = async (
 };
 
 export const optionalAuth = async (
-  req: AuthenticatedRequest,
+  req: Request & { user?: IUser },
   res: Response,
   next: NextFunction
 ): Promise<void> => {

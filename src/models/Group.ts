@@ -49,9 +49,8 @@ const GroupSchema = new Schema({
   timestamps: true
 });
 
-// Indexes
+// Additional indexes (unique: true already creates index for invitationCode)
 GroupSchema.index({ ownerId: 1 });
-GroupSchema.index({ invitationCode: 1 });
 GroupSchema.index({ isActive: 1 });
 GroupSchema.index({ 'members.userId': 1 });
 

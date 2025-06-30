@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { GroupController } from '@/controllers/groupController';
 import { authenticateToken } from '@/middleware/auth';
 import { validateRequest } from '@/middleware/validation';
-import { groupSchemas } from '@/schemas/group';
+import { createGroupSchema } from '@/schemas/group';
 
 const router = Router();
 const groupController = new GroupController();
@@ -10,24 +10,22 @@ const groupController = new GroupController();
 // Apply authentication middleware to all group routes
 router.use(authenticateToken);
 
-// Group management routes
-router.post('/', validateRequest(groupSchemas.createGroup), groupController.createGroup);
-router.get('/', groupController.getUserGroups);
-router.get('/:groupId', groupController.getGroupById);
-router.put('/:groupId', validateRequest(groupSchemas.updateGroup), groupController.updateGroup);
-router.delete('/:groupId', groupController.deleteGroup);
+// POST /api/groups - Create a new group
+router.post('/', validateRequest(createGroupSchema), groupController.createGroup.bind(groupController));
 
-// Group membership routes
-router.post('/join', validateRequest(groupSchemas.joinGroup), groupController.joinGroup);
-router.post('/:groupId/leave', groupController.leaveGroup);
-router.get('/:groupId/members', groupController.getGroupMembers);
+// GET /api/groups - Get all groups for the authenticated user
+router.get('/', groupController.getUserGroups.bind(groupController));
 
-// Group preferences routes
-router.post('/:groupId/preferences', validateRequest(groupSchemas.updatePreferences), groupController.updatePreferences);
-router.get('/:groupId/preferences', groupController.getGroupPreferences);
+// GET /api/groups/:groupId - Get specific group details
+router.get('/:groupId', groupController.getGroupById.bind(groupController));
 
-// Invitation routes
-router.post('/:groupId/invite', validateRequest(groupSchemas.generateInvite), groupController.generateInviteCode);
-router.get('/invite/:inviteCode', groupController.getInviteDetails);
+// DELETE /api/groups/:groupId - Delete a group (owner only)
+router.delete('/:groupId', groupController.deleteGroup.bind(groupController));
+
+// POST /api/groups/:groupId/invite - Generate new invitation code (owner only)
+router.post('/:groupId/invite', groupController.generateInviteCode.bind(groupController));
+
+// GET /api/groups/invite/:inviteCode - Get invitation details
+router.get('/invite/:inviteCode', groupController.getInviteDetails.bind(groupController));
 
 export default router; 

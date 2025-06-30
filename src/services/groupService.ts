@@ -4,6 +4,9 @@ import { GroupPreferences, GenrePreference } from '@/types';
 import { generateInvitationCode } from '@/utils/helpers';
 
 export class GroupService {
+  /**
+   * Creates a new group with the specified name and owner
+   */
   async createGroup(name: string, ownerId: string): Promise<IGroup> {
     const invitationCode = generateInvitationCode();
     
@@ -11,16 +14,16 @@ export class GroupService {
       name,
       ownerId,
       invitationCode,
-      members: [{ userId: ownerId, joinedAt: new Date(), preferences: [] }]
+      members: [],
+      isActive: true
     });
 
     return await group.save();
   }
 
-  async getGroupById(groupId: string): Promise<IGroup | null> {
-    return await GroupModel.findById(groupId);
-  }
-
+  /**
+   * Gets all groups where the user is a member or owner
+   */
   async getUserGroups(userId: string): Promise<IGroup[]> {
     return await GroupModel.find({
       $or: [
@@ -28,7 +31,54 @@ export class GroupService {
         { 'members.userId': userId }
       ],
       isActive: true
-    });
+    }).sort({ updatedAt: -1 });
+  }
+
+  /**
+   * Gets a group by its ID
+   */
+  async getGroupById(groupId: string): Promise<IGroup | null> {
+    return await GroupModel.findById(groupId);
+  }
+
+  /**
+   * Gets a group by its invitation code
+   */
+  async getGroupByInviteCode(inviteCode: string): Promise<IGroup | null> {
+    return await GroupModel.findOne({ invitationCode: inviteCode });
+  }
+
+  /**
+   * Deletes a group (only the owner can delete)
+   */
+  async deleteGroup(groupId: string, userId: string): Promise<boolean> {
+    const group = await GroupModel.findById(groupId);
+    
+    if (!group || group.ownerId !== userId) {
+      return false;
+    }
+
+    group.isActive = false;
+    await group.save();
+    
+    return true;
+  }
+
+  /**
+   * Generates a new invitation code for a group (only owner can generate)
+   */
+  async generateNewInviteCode(groupId: string, userId: string): Promise<string | null> {
+    const group = await GroupModel.findById(groupId);
+    
+    if (!group || group.ownerId !== userId) {
+      return null;
+    }
+
+    const newInviteCode = generateInvitationCode();
+    group.invitationCode = newInviteCode;
+    await group.save();
+    
+    return newInviteCode;
   }
 
   async joinGroup(invitationCode: string, userId: string): Promise<IGroup | null> {
@@ -39,13 +89,18 @@ export class GroupService {
     }
 
     // Check if user is already a member
-    const isMember = group.members.some(member => member.userId === userId);
-    if (isMember) {
+    const isAlreadyMember = group.members.some((member: any) => member.userId === userId);
+    if (isAlreadyMember) {
       return group;
     }
 
     // Add user to group
-    group.members.push({ userId, joinedAt: new Date(), preferences: [] });
+    group.members.push({
+      userId,
+      joinedAt: new Date(),
+      preferences: []
+    });
+
     return await group.save();
   }
 
@@ -57,103 +112,59 @@ export class GroupService {
     }
 
     // Remove user from members
-    group.members = group.members.filter(member => member.userId !== userId);
-    
-    // If no members left, deactivate group
-    if (group.members.length === 0) {
-      group.isActive = false;
-    }
-
+    group.members = group.members.filter((member: any) => member.userId !== userId);
     await group.save();
+    
     return true;
   }
 
-  async updateMemberPreferences(groupId: string, userId: string, preferences: GenrePreference[]): Promise<boolean> {
+  async updateMemberPreferences(groupId: string, userId: string, preferences: any[]): Promise<boolean> {
     const group = await GroupModel.findById(groupId);
     
     if (!group) {
       return false;
     }
 
-    const memberIndex = group.members.findIndex(member => member.userId === userId);
-    if (memberIndex === -1) {
+    // Find and update member preferences
+    const member = group.members.find((member: any) => member.userId === userId);
+    if (!member) {
       return false;
     }
 
-    group.members[memberIndex].preferences = preferences;
+    member.preferences = preferences;
     await group.save();
+    
     return true;
   }
 
-  async getGroupPreferences(groupId: string): Promise<GroupPreferences> {
+  async getGroupPreferences(groupId: string): Promise<any> {
     const group = await GroupModel.findById(groupId).populate('members.userId');
-    
-    if (!group) {
-      throw new Error('Group not found');
-    }
-
-    // Calculate common genres
-    const genreCounts = new Map<number, { name: string; totalWeight: number; count: number }>();
-    
-    group.members.forEach(member => {
-      member.preferences.forEach(pref => {
-        if (!genreCounts.has(pref.genreId)) {
-          genreCounts.set(pref.genreId, { name: pref.genreName, totalWeight: 0, count: 0 });
-        }
-        const genre = genreCounts.get(pref.genreId)!;
-        genre.totalWeight += pref.weight;
-        genre.count += 1;
-      });
-    });
-
-    // Find common genres (preferred by more than 50% of members)
-    const commonGenres: GenrePreference[] = [];
-    const memberCount = group.members.length;
-    
-    genreCounts.forEach((genre, genreId) => {
-      if (genre.count > memberCount / 2) {
-        commonGenres.push({
-          genreId,
-          genreName: genre.name,
-          weight: Math.round(genre.totalWeight / genre.count)
-        });
-      }
-    });
-
-    // Create individual preferences map
-    const individualPreferences = new Map<string, GenrePreference[]>();
-    group.members.forEach(member => {
-      individualPreferences.set(member.userId, member.preferences);
-    });
-
-    return {
-      groupId,
-      commonGenres,
-      individualPreferences
-    };
-  }
-
-  async deleteGroup(groupId: string, ownerId: string): Promise<boolean> {
-    const group = await GroupModel.findOne({ _id: groupId, ownerId });
-    
-    if (!group) {
-      return false;
-    }
-
-    group.isActive = false;
-    await group.save();
-    return true;
-  }
-
-  async generateNewInviteCode(groupId: string, ownerId: string): Promise<string | null> {
-    const group = await GroupModel.findOne({ _id: groupId, ownerId });
     
     if (!group) {
       return null;
     }
 
-    group.invitationCode = generateInvitationCode();
-    await group.save();
-    return group.invitationCode;
+    // Aggregate preferences from all members
+    const allPreferences: { [key: string]: number } = {};
+    
+    group.members.forEach((member: any) => {
+      member.preferences.forEach((pref: any) => {
+        if (!allPreferences[pref.genreId]) {
+          allPreferences[pref.genreId] = 0;
+        }
+        allPreferences[pref.genreId] += pref.weight;
+      });
+    });
+
+    // Convert to array and sort by weight
+    const sortedPreferences = Object.entries(allPreferences)
+      .map(([genreId, weight]) => ({ genreId: parseInt(genreId), weight }))
+      .sort((a, b) => b.weight - a.weight);
+
+    return {
+      groupId: group._id,
+      preferences: sortedPreferences,
+      memberCount: group.members.length
+    };
   }
 } 

@@ -63,9 +63,7 @@ const UserSchema = new Schema({
   }
 });
 
-// Indexes
-UserSchema.index({ email: 1 });
-UserSchema.index({ googleId: 1 });
+// Additional indexes (unique: true already creates indexes for email and googleId)
 UserSchema.index({ isActive: 1 });
 
 export const UserModel = mongoose.model<UserDocument>('User', UserSchema); 

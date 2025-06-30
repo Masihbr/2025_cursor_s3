@@ -117,6 +117,123 @@ export class VotingService {
   }
 
   /**
+   * Get detailed movie selection results for a completed session
+   */
+  async getMovieSelectionResults(sessionId: string): Promise<{
+    sessionId: string;
+    groupId: string;
+    selectedMovie: Movie;
+    votingResults: Array<{
+      movie: Movie;
+      yesVotes: number;
+      noVotes: number;
+      totalVotes: number;
+      approvalRate: number;
+      score: number;
+    }>;
+    totalParticipants: number;
+    totalVotesCast: number;
+    endTime: Date;
+    sessionDuration: number; // in minutes
+  }> {
+    const session = await VotingSessionModel.findById(sessionId);
+    if (!session) {
+      throw new Error('Voting session not found');
+    }
+
+    if (session.status !== 'completed') {
+      throw new Error('Voting session is not completed');
+    }
+
+    if (!session.selectedMovie) {
+      throw new Error('No movie has been selected for this session');
+    }
+
+    // Get group details to count participants
+    const group = await this.groupService.getGroupById(session.groupId);
+    if (!group) {
+      throw new Error('Group not found');
+    }
+
+    const totalParticipants = group.members.length + 1; // +1 for owner
+    const totalVotesCast = session.votes.length;
+
+    // Calculate detailed voting results
+    const votingResults = this.calculateDetailedVotingResults(session);
+
+    // Calculate session duration
+    const sessionDuration = session.startTime && session.endTime 
+      ? Math.round((session.endTime.getTime() - session.startTime.getTime()) / (1000 * 60))
+      : 0;
+
+    return {
+      sessionId: (session as any)._id.toString(),
+      groupId: session.groupId,
+      selectedMovie: session.selectedMovie,
+      votingResults,
+      totalParticipants,
+      totalVotesCast,
+      endTime: session.endTime!,
+      sessionDuration
+    };
+  }
+
+  /**
+   * Calculate detailed voting results for a session
+   */
+  private calculateDetailedVotingResults(session: IVotingSession): Array<{
+    movie: Movie;
+    yesVotes: number;
+    noVotes: number;
+    totalVotes: number;
+    approvalRate: number;
+    score: number;
+  }> {
+    const results: { [movieId: number]: { 
+      movie: Movie; 
+      yesVotes: number; 
+      noVotes: number; 
+      totalVotes: number; 
+      approvalRate: number; 
+      score: number; 
+    } } = {};
+
+    // Initialize results for all movies
+    session.movies.forEach(movie => {
+      results[movie.id] = {
+        movie,
+        yesVotes: 0,
+        noVotes: 0,
+        totalVotes: 0,
+        approvalRate: 0,
+        score: 0
+      };
+    });
+
+    // Count votes
+    session.votes.forEach(vote => {
+      if (results[vote.movieId]) {
+        if (vote.vote === 'yes') {
+          results[vote.movieId].yesVotes++;
+        } else {
+          results[vote.movieId].noVotes++;
+        }
+        results[vote.movieId].totalVotes++;
+      }
+    });
+
+    // Calculate approval rates and scores
+    Object.values(results).forEach(result => {
+      result.approvalRate = result.totalVotes > 0 
+        ? Math.round((result.yesVotes / result.totalVotes) * 100) 
+        : 0;
+      result.score = result.yesVotes - result.noVotes + (result.movie.voteAverage * 0.1);
+    });
+
+    return Object.values(results).sort((a, b) => b.score - a.score);
+  }
+
+  /**
    * Cast a vote for a movie
    */
   async castVote(sessionId: string, userId: string, movieId: number, vote: 'yes' | 'no'): Promise<boolean> {

@@ -137,10 +137,13 @@ export class VotingController {
 
       const session = await votingService.endSession(sessionId, userId);
       
+      // Get detailed results
+      const results = await votingService.getMovieSelectionResults(sessionId);
+      
       res.status(200).json({
         success: true,
         data: {
-          id: (session as any)._id,
+          sessionId: (session as any)._id,
           groupId: session.groupId,
           status: session.status,
           movies: session.movies,
@@ -149,9 +152,14 @@ export class VotingController {
           endTime: session.endTime,
           selectedMovie: session.selectedMovie,
           createdAt: session.createdAt,
-          updatedAt: session.updatedAt
+          updatedAt: session.updatedAt,
+          // Detailed results
+          votingResults: results.votingResults,
+          totalParticipants: results.totalParticipants,
+          totalVotesCast: results.totalVotesCast,
+          sessionDuration: results.sessionDuration
         },
-        message: 'Voting session ended successfully'
+        message: 'Voting session ended successfully. Movie selected!'
       });
     } catch (error) {
       console.error('End session error:', error);
@@ -261,8 +269,31 @@ export class VotingController {
   }
 
   /**
+   * GET /api/voting/sessions/:sessionId/selection
+   * Get detailed movie selection results for a completed session
+   */
+  async getMovieSelectionResults(req: Request, res: Response): Promise<void> {
+    try {
+      const { sessionId } = req.params;
+
+      const results = await votingService.getMovieSelectionResults(sessionId);
+      
+      res.status(200).json({
+        success: true,
+        data: results
+      });
+    } catch (error) {
+      console.error('Get movie selection results error:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch movie selection results'
+      });
+    }
+  }
+
+  /**
    * GET /api/voting/sessions/:sessionId/results
-   * Get voting results for a session
+   * Get voting results for a session (enhanced version)
    */
   async getSessionResults(req: Request, res: Response): Promise<void> {
     try {
@@ -285,6 +316,9 @@ export class VotingController {
         return;
       }
 
+      // Get detailed results
+      const detailedResults = await votingService.getMovieSelectionResults(sessionId);
+
       res.status(200).json({
         success: true,
         data: {
@@ -292,7 +326,12 @@ export class VotingController {
           groupId: session.groupId,
           selectedMovie: session.selectedMovie,
           totalVotes: session.votes.length,
-          endTime: session.endTime
+          endTime: session.endTime,
+          // Enhanced results
+          votingResults: detailedResults.votingResults,
+          totalParticipants: detailedResults.totalParticipants,
+          totalVotesCast: detailedResults.totalVotesCast,
+          sessionDuration: detailedResults.sessionDuration
         }
       });
     } catch (error) {

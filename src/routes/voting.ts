@@ -22,6 +22,9 @@ router.post('/sessions/:sessionId/votes', validateRequest(votingSchemas.castVote
 router.get('/sessions/:sessionId/votes', votingController.getSessionVotes);
 router.get('/sessions/:sessionId/results', votingController.getSessionResults);
 
+// Movie selection routes
+router.get('/sessions/:sessionId/selection', votingController.getMovieSelectionResults);
+
 // Session history and details
 router.get('/sessions/history/:groupId', votingController.getSessionHistory);
 router.get('/sessions/:sessionId', votingController.getSessionDetails);

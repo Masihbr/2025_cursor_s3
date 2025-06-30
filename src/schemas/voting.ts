@@ -2,8 +2,7 @@ import Joi from 'joi';
 
 export const votingSchemas = {
   createSession: Joi.object({
-    groupId: Joi.string().required(),
-    movieCount: Joi.number().min(5).max(50).default(20)
+    groupId: Joi.string().required()
   }),
 
   castVote: Joi.object({

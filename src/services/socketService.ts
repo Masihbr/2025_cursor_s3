@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { AuthenticatedRequest } from '@/middleware/auth';
-import { VotingService } from './votingService';
-import { NotificationService } from './notificationService';
+import { VotingService } from '@/services/votingService';
+import { NotificationService } from '@/services/notificationService';
 
 export class SocketService {
   private io: Server;
@@ -58,12 +58,12 @@ export class SocketService {
       socket.on('vote:cast', async (data: { sessionId: string; movieId: number; vote: 'yes' | 'no' }) => {
         if (socket.data.user) {
           try {
-            const vote = await this.votingService.castVote({
-              sessionId: data.sessionId,
-              userId: socket.data.user.id,
-              movieId: data.movieId,
-              vote: data.vote
-            });
+            await this.votingService.castVote(
+              data.sessionId,
+              socket.data.user.id,
+              data.movieId,
+              data.vote
+            );
 
             // Broadcast vote to group
             const session = await this.votingService.getSessionById(data.sessionId);
@@ -72,7 +72,7 @@ export class SocketService {
                 userId: socket.data.user.id,
                 movieId: data.movieId,
                 vote: data.vote,
-                timestamp: vote.timestamp
+                timestamp: new Date()
               });
             }
           } catch (error) {
@@ -87,15 +87,13 @@ export class SocketService {
         if (socket.data.user) {
           try {
             const session = await this.votingService.startSession(sessionId, socket.data.user.id);
-            if (session) {
-              this.io.to(`group:${session.groupId}`).emit('session:started', {
-                sessionId,
-                movies: session.movies
-              });
+            this.io.to(`group:${session.groupId}`).emit('session:started', {
+              sessionId,
+              movies: session.movies
+            });
 
-              // Send push notifications to group members
-              await this.notificationService.notifyGroupMembers(session.groupId, 'Voting session started!');
-            }
+            // Send push notifications to group members
+            await this.notificationService.notifyGroupMembers(session.groupId, 'Voting session started!');
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             socket.emit('session:error', { error: errorMessage });
@@ -107,17 +105,14 @@ export class SocketService {
       socket.on('session:end', async (sessionId: string) => {
         if (socket.data.user) {
           try {
-            const result = await this.votingService.endSession(sessionId, socket.data.user.id);
-            if (result) {
-              this.io.to(`group:${result.groupId}`).emit('session:ended', {
-                sessionId,
-                selectedMovie: result.selectedMovie,
-                results: result.results
-              });
+            const session = await this.votingService.endSession(sessionId, socket.data.user.id);
+            this.io.to(`group:${session.groupId}`).emit('session:ended', {
+              sessionId,
+              selectedMovie: session.selectedMovie
+            });
 
-              // Send push notifications
-              await this.notificationService.notifyGroupMembers(result.groupId, 'Movie selected! Check the results.');
-            }
+            // Send push notifications
+            await this.notificationService.notifyGroupMembers(session.groupId, 'Movie selected! Check the results.');
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             socket.emit('session:error', { error: errorMessage });

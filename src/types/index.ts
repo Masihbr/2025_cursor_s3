@@ -171,4 +171,13 @@ export interface TMDBResponse<T> {
   page: number;
   total_results: number;
   total_pages: number;
+}
+
+// JWT payload type for authentication
+export interface JwtPayload {
+  id: string;
+  googleId: string;
+  email: string;
+  name: string;
+  profilePicture?: string;
 } 

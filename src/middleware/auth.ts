@@ -1,10 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { appConfig } from '@/config/app';
-import { AuthUser } from '@/types';
 
 export interface AuthenticatedRequest extends Request {
-  user?: AuthUser;
+  user?: any;
 }
 
 export const authenticateToken = (
@@ -21,7 +20,7 @@ export const authenticateToken = (
   }
 
   try {
-    const decoded = jwt.verify(token, appConfig.jwtSecret) as AuthUser;
+    const decoded = jwt.verify(token, appConfig.jwtSecret);
     req.user = decoded;
     next();
   } catch (error) {
@@ -39,7 +38,7 @@ export const optionalAuth = (
 
   if (token) {
     try {
-      const decoded = jwt.verify(token, appConfig.jwtSecret) as AuthUser;
+      const decoded = jwt.verify(token, appConfig.jwtSecret);
       req.user = decoded;
     } catch (error) {
       // Token is invalid, but we continue without authentication

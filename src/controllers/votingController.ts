@@ -214,9 +214,19 @@ export class VotingController {
 
       await votingService.castVote(sessionId, userId, movieId, vote);
       
+      // Get user's votes for this session
+      const session = await votingService.getSessionById(sessionId);
+      const userVotes = session?.votes
+        .filter(v => v.userId === userId)
+        .reduce((acc, v) => {
+          acc[v.movieId] = v.vote;
+          return acc;
+        }, {} as Record<number, 'yes' | 'no'>);
+
       res.status(200).json({
         success: true,
-        message: 'Vote cast successfully'
+        message: 'Vote cast successfully',
+        userVotes
       });
     } catch (error) {
       console.error('Cast vote error:', error);
@@ -330,11 +340,12 @@ export class VotingController {
 
   /**
    * GET /api/voting/sessions/:sessionId
-   * Get voting session details
+   * Get voting session details (with user votes)
    */
   async getSessionDetails(req: Request, res: Response): Promise<void> {
     try {
       const { sessionId } = req.params;
+      const userId = (req as any).user?.id;
 
       const session = await votingService.getSessionById(sessionId);
       if (!session) {
@@ -343,6 +354,17 @@ export class VotingController {
           error: 'Voting session not found'
         });
         return;
+      }
+
+      // Add userVotes: { [movieId]: 'yes' | 'no' }
+      let userVotes: Record<number, 'yes' | 'no'> = {};
+      if (userId) {
+        userVotes = session.votes
+          .filter(v => v.userId === userId)
+          .reduce((acc, v) => {
+            acc[v.movieId] = v.vote;
+            return acc;
+          }, {} as Record<number, 'yes' | 'no'>);
       }
 
       res.status(200).json({
@@ -357,7 +379,8 @@ export class VotingController {
           endTime: session.endTime,
           selectedMovie: session.selectedMovie,
           createdAt: session.createdAt,
-          updatedAt: session.updatedAt
+          updatedAt: session.updatedAt,
+          userVotes
         }
       });
     } catch (error) {

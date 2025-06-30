@@ -1,0 +1,560 @@
+openapi: 3.0.3
+info:
+  title: MovieSwipe - External API Integration (TMDB)
+  description: API endpoints for integrating with The Movie Database (TMDB) to fetch movies and genres
+  version: 1.0.0
+  contact:
+    name: MovieSwipe Team
+    email: support@movieswipe.com
+
+servers:
+  - url: http://localhost:3001
+    description: Development server
+  - url: https://api.movieswipe.com
+    description: Production server
+
+paths:
+  /api/movies/search:
+    get:
+      summary: Search movies
+      description: Search for movies using TMDB API
+      tags:
+        - Movies
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+          description: Search query for movies
+          example: "Avengers"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+          example: 1
+      responses:
+        '200':
+          description: Movies found successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      movies:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Movie'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+        '400':
+          description: Bad request - missing query parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+
+  /api/movies/popular:
+    get:
+      summary: Get popular movies
+      description: Get currently popular movies from TMDB
+      tags:
+        - Movies
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+          example: 1
+      responses:
+        '200':
+          description: Popular movies retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      movies:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Movie'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+        '500':
+          description: Internal server error
+
+  /api/movies/top-rated:
+    get:
+      summary: Get top-rated movies
+      description: Get top-rated movies from TMDB
+      tags:
+        - Movies
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+          example: 1
+      responses:
+        '200':
+          description: Top-rated movies retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      movies:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Movie'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+        '500':
+          description: Internal server error
+
+  /api/movies/upcoming:
+    get:
+      summary: Get upcoming movies
+      description: Get upcoming movies from TMDB
+      tags:
+        - Movies
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+          example: 1
+      responses:
+        '200':
+          description: Upcoming movies retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      movies:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Movie'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+        '500':
+          description: Internal server error
+
+  /api/movies/genres:
+    get:
+      summary: Get movie genres
+      description: Get all available movie genres from TMDB
+      tags:
+        - Movies
+      responses:
+        '200':
+          description: Genres retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MovieGenre'
+        '500':
+          description: Internal server error
+
+  /api/movies/genre/{genreId}:
+    get:
+      summary: Get movies by genre
+      description: Get movies filtered by a specific genre
+      tags:
+        - Movies
+      parameters:
+        - name: genreId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: TMDB genre ID
+          example: 28
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+          example: 1
+      responses:
+        '200':
+          description: Movies by genre retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      movies:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Movie'
+                      genreId:
+                        type: integer
+                        example: 28
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+        '400':
+          description: Bad request - invalid genre ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+
+  /api/movies/{movieId}:
+    get:
+      summary: Get movie details
+      description: Get detailed information about a specific movie
+      tags:
+        - Movies
+      parameters:
+        - name: movieId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: TMDB movie ID
+          example: 550
+      responses:
+        '200':
+          description: Movie details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Movie'
+        '400':
+          description: Bad request - invalid movie ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+
+  /api/movies/{movieId}/similar:
+    get:
+      summary: Get similar movies
+      description: Get movies similar to the specified movie
+      tags:
+        - Movies
+      parameters:
+        - name: movieId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: TMDB movie ID
+          example: 550
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+          example: 1
+      responses:
+        '200':
+          description: Similar movies retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      movies:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Movie'
+                      movieId:
+                        type: integer
+                        example: 550
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+        '400':
+          description: Bad request - invalid movie ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+
+  /api/movies/recommendations/{groupId}:
+    get:
+      summary: Get movie recommendations for group
+      description: Get movie recommendations based on group preferences (currently returns popular movies)
+      tags:
+        - Movies
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Group ID
+          example: "507f1f77bcf86cd799439011"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+          description: Number of recommendations to return
+          example: 20
+      responses:
+        '200':
+          description: Recommendations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      movies:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Movie'
+                      groupId:
+                        type: string
+                        example: "507f1f77bcf86cd799439011"
+                      note:
+                        type: string
+                        example: "Currently showing popular movies. Group-based recommendations coming soon."
+        '401':
+          description: Unauthorized - invalid or missing token
+        '500':
+          description: Internal server error
+
+  /api/movies/{movieId}/favorite:
+    post:
+      summary: Toggle movie favorite status
+      description: Toggle favorite status for a movie (placeholder for future implementation)
+      tags:
+        - Movies
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: movieId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: TMDB movie ID
+          example: 550
+      responses:
+        '501':
+          description: Not implemented yet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: "Toggle favorite not implemented yet"
+
+  /api/movies/favorites:
+    get:
+      summary: Get user's favorite movies
+      description: Get list of user's favorite movies (placeholder for future implementation)
+      tags:
+        - Movies
+      security:
+        - BearerAuth: []
+      responses:
+        '501':
+          description: Not implemented yet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: "Get favorites not implemented yet"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from authentication endpoint
+
+  schemas:
+    Movie:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: TMDB movie ID
+          example: 550
+        title:
+          type: string
+          description: Movie title
+          example: "Fight Club"
+        overview:
+          type: string
+          description: Movie overview/synopsis
+          example: "A ticking-time-bomb insomniac and a slippery soap salesman channel primal male aggression into a shocking new form of therapy."
+        posterPath:
+          type: string
+          description: URL to movie poster image
+          example: "https://image.tmdb.org/t/p/w500/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg"
+        backdropPath:
+          type: string
+          description: URL to movie backdrop image
+          example: "https://image.tmdb.org/t/p/original/8uO0gUM8aNqYLs1OsTBQiXu0fEv.jpg"
+        releaseDate:
+          type: string
+          format: date
+          description: Movie release date
+          example: "1999-10-15"
+        genres:
+          type: array
+          items:
+            $ref: '#/components/schemas/MovieGenre'
+          description: Movie genres
+        voteAverage:
+          type: number
+          format: float
+          description: Average vote rating
+          example: 8.8
+        voteCount:
+          type: integer
+          description: Number of votes
+          example: 25000
+        runtime:
+          type: integer
+          description: Movie runtime in minutes
+          example: 139
+        tagline:
+          type: string
+          description: Movie tagline
+          example: "How much can you know about yourself if you've never been in a fight?"
+
+    MovieGenre:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: TMDB genre ID
+          example: 28
+        name:
+          type: string
+          description: Genre name
+          example: "Action"
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        total:
+          type: integer
+          description: Number of results on current page
+          example: 20
+        hasMore:
+          type: boolean
+          description: Whether there are more pages available
+          example: true
+
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+
+tags:
+  - name: Movies
+    description: Movie-related operations using TMDB API 

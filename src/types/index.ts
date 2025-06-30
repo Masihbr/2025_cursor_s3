@@ -159,6 +159,7 @@ export interface TMDBMovie {
   vote_count: number;
   runtime?: number;
   tagline?: string;
+  genres?: MovieGenre[];
 }
 
 export interface TMDBGenre {

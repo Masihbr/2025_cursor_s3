@@ -14,7 +14,11 @@ export class GroupService {
       name,
       ownerId,
       invitationCode,
-      members: [],
+      members: [{
+        userId: ownerId,
+        joinedAt: new Date(),
+        preferences: []
+      }],
       isActive: true
     });
 
@@ -81,6 +85,9 @@ export class GroupService {
     return newInviteCode;
   }
 
+  /**
+   * Join a group using an invitation code
+   */
   async joinGroup(invitationCode: string, userId: string): Promise<IGroup | null> {
     const group = await GroupModel.findOne({ invitationCode, isActive: true });
     
@@ -91,6 +98,20 @@ export class GroupService {
     // Check if user is already a member
     const isAlreadyMember = group.members.some((member: any) => member.userId === userId);
     if (isAlreadyMember) {
+      return group; // User is already a member
+    }
+
+    // Check if user is the owner (owner should already be a member from group creation)
+    if (group.ownerId === userId) {
+      // If owner is not in members list, add them
+      if (!isAlreadyMember) {
+        group.members.push({
+          userId,
+          joinedAt: new Date(),
+          preferences: []
+        });
+        await group.save();
+      }
       return group;
     }
 
@@ -104,10 +125,19 @@ export class GroupService {
     return await group.save();
   }
 
+  /**
+   * Leave a group
+   */
   async leaveGroup(groupId: string, userId: string): Promise<boolean> {
     const group = await GroupModel.findById(groupId);
     
     if (!group) {
+      return false;
+    }
+
+    // Check if user is a member
+    const isMember = group.members.some((member: any) => member.userId === userId);
+    if (!isMember) {
       return false;
     }
 
@@ -118,6 +148,9 @@ export class GroupService {
     return true;
   }
 
+  /**
+   * Update member preferences for a group
+   */
   async updateMemberPreferences(groupId: string, userId: string, preferences: any[]): Promise<boolean> {
     const group = await GroupModel.findById(groupId);
     
@@ -137,6 +170,9 @@ export class GroupService {
     return true;
   }
 
+  /**
+   * Get group preferences (aggregated from all members)
+   */
   async getGroupPreferences(groupId: string): Promise<any> {
     const group = await GroupModel.findById(groupId).populate('members.userId');
     

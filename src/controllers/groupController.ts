@@ -230,4 +230,182 @@ export class GroupController {
       });
     }
   }
+
+  /**
+   * POST /api/groups/join
+   * Join a group using an invitation code
+   */
+  async joinGroup(req: Request, res: Response): Promise<void> {
+    try {
+      const { invitationCode } = req.body;
+      const userId = (req as any).user.id;
+
+      if (!invitationCode || invitationCode.trim().length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'Invitation code is required'
+        });
+        return;
+      }
+
+      const result = await groupService.joinGroup(invitationCode.trim().toUpperCase(), userId);
+      
+      if (!result) {
+        res.status(404).json({
+          success: false,
+          error: 'Invalid invitation code or group not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          groupId: (result as any)._id,
+          groupName: result.name,
+          message: 'Successfully joined the group'
+        }
+      });
+    } catch (error) {
+      console.error('Join group error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to join group'
+      });
+    }
+  }
+
+  /**
+   * POST /api/groups/:groupId/leave
+   * Leave a group
+   */
+  async leaveGroup(req: Request, res: Response): Promise<void> {
+    try {
+      const { groupId } = req.params;
+      const userId = (req as any).user.id;
+      
+      const success = await groupService.leaveGroup(groupId, userId);
+      
+      if (!success) {
+        res.status(404).json({
+          success: false,
+          error: 'Group not found or you are not a member'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Successfully left the group'
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to leave group'
+      });
+    }
+  }
+
+  /**
+   * POST /api/groups/:groupId/preferences
+   * Update user's genre preferences for a group
+   */
+  async updatePreferences(req: Request, res: Response): Promise<void> {
+    try {
+      const { groupId } = req.params;
+      const { preferences } = req.body;
+      const userId = (req as any).user.id;
+
+      if (!preferences || !Array.isArray(preferences)) {
+        res.status(400).json({
+          success: false,
+          error: 'Preferences array is required'
+        });
+        return;
+      }
+
+      // Validate preferences structure
+      for (const pref of preferences) {
+        if (!pref.genreId || !pref.genreName || typeof pref.weight !== 'number' || pref.weight < 1 || pref.weight > 10) {
+          res.status(400).json({
+            success: false,
+            error: 'Each preference must have genreId, genreName, and weight (1-10)'
+          });
+          return;
+        }
+      }
+
+      const success = await groupService.updateMemberPreferences(groupId, userId, preferences);
+      
+      if (!success) {
+        res.status(404).json({
+          success: false,
+          error: 'Group not found or you are not a member'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Preferences updated successfully'
+      });
+    } catch (error) {
+      console.error('Update preferences error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update preferences'
+      });
+    }
+  }
+
+  /**
+   * GET /api/groups/:groupId/preferences
+   * Get group preferences (aggregated from all members)
+   */
+  async getGroupPreferences(req: Request, res: Response): Promise<void> {
+    try {
+      const { groupId } = req.params;
+      const userId = (req as any).user.id;
+      
+      // Check if user is a member of the group
+      const group = await groupService.getGroupById(groupId);
+      if (!group) {
+        res.status(404).json({
+          success: false,
+          error: 'Group not found'
+        });
+        return;
+      }
+
+      const isMember = group.members.some(member => member.userId === userId);
+      if (!isMember && group.ownerId !== userId) {
+        res.status(403).json({
+          success: false,
+          error: 'Access denied. You are not a member of this group.'
+        });
+        return;
+      }
+
+      const preferences = await groupService.getGroupPreferences(groupId);
+      
+      if (!preferences) {
+        res.status(404).json({
+          success: false,
+          error: 'Group preferences not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: preferences
+      });
+    } catch (error) {
+      console.error('Get group preferences error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch group preferences'
+      });
+    }
+  }
 } 

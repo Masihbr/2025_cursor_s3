@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { GroupController } from '@/controllers/groupController';
 import { authenticateToken } from '@/middleware/auth';
 import { validateRequest } from '@/middleware/validation';
-import { createGroupSchema } from '@/schemas/group';
+import { createGroupSchema, joinGroupSchema, updatePreferencesSchema } from '@/schemas/group';
 
 const router = Router();
 const groupController = new GroupController();
@@ -27,5 +27,17 @@ router.post('/:groupId/invite', groupController.generateInviteCode.bind(groupCon
 
 // GET /api/groups/invite/:inviteCode - Get invitation details
 router.get('/invite/:inviteCode', groupController.getInviteDetails.bind(groupController));
+
+// POST /api/groups/join - Join a group using invitation code
+router.post('/join', validateRequest(joinGroupSchema), groupController.joinGroup.bind(groupController));
+
+// POST /api/groups/:groupId/leave - Leave a group
+router.post('/:groupId/leave', groupController.leaveGroup.bind(groupController));
+
+// POST /api/groups/:groupId/preferences - Update user's genre preferences
+router.post('/:groupId/preferences', validateRequest(updatePreferencesSchema), groupController.updatePreferences.bind(groupController));
+
+// GET /api/groups/:groupId/preferences - Get group preferences
+router.get('/:groupId/preferences', groupController.getGroupPreferences.bind(groupController));
 
 export default router; 
